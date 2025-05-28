@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans;
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  .container {
+    @apply px-4 mx-auto max-w-7xl sm:px-6 lg:px-8;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-500 hover:bg-primary-600 text-gray-900 focus:ring-primary-500;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-gray-800 hover:bg-gray-700 text-primary-300 border border-primary-700 focus:ring-primary-500;
+  }
+  
+  .section {
+    @apply py-16 md:py-24;
+  }
+  
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold mb-8 text-center;
+  }
+  
+  .card {
+    @apply bg-gray-900 rounded-xl overflow-hidden border border-gray-800 transition-all duration-200;
+  }
+  
+  .card-hover {
+    @apply card hover:border-primary-700 hover:shadow-neon;
+  }
+  
+  .feature-card {
+    @apply card-hover p-6;
+  }
+  
+  .glow-text {
+    @apply text-primary-400 animate-glow;
+  }
+  
+  .nav-link {
+    @apply text-gray-300 hover:text-primary-400 transition-colors duration-200;
+  }
+  
+  .nav-link-active {
+    @apply text-primary-400;
+  }
+}
+
+/* Neon border effect */
+.neon-border {
+  position: relative;
+}
+
+.neon-border::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(0, 230, 230, 0.3);
+  border-radius: inherit;
+  box-shadow: 0 0 10px rgba(0, 230, 230, 0.5);
+  pointer-events: none;
+}
+
+/* Connection line animation */
+.connection-line {
+  stroke-dasharray: 10;
+  animation: dash 20s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 1000;
+  }
+}
