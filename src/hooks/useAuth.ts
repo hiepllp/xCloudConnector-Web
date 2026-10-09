@@ -7,39 +7,49 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    let mounted = true;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const signIn = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: prompt('Please enter your email') || '',
-      password: prompt('Please enter your password') || '',
-    });
-
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      console.error('Error signing in:', error.message);
-      alert(error.message);
+      throw error;
     }
+  };
+
+  const signUp = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      throw error;
+    }
+    return data;
   };
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Error signing out:', error.message);
-      alert(error.message);
+      throw error;
     }
   };
 
@@ -47,6 +57,7 @@ export function useAuth() {
     user,
     loading,
     signIn,
+    signUp,
     signOut,
   };
 }

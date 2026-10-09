@@ -1,147 +1,175 @@
 import React, { useEffect, useState } from 'react';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+
+type AuthView = 'sign_in' | 'sign_up' | 'forgot_password';
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-  const email = location.state?.email;
+  const { user, signIn, signUp } = useAuth();
+  const [view, setView] = useState<AuthView>('sign_in');
+  const [email, setEmail] = useState(location.state?.email ?? '');
+  const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [view, setView] = useState<'sign_in' | 'forgot_password'>('sign_in');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (user) {
-      // If user is already authenticated, redirect to checkout
-      navigate('/checkout');
+      navigate('/checkout', { replace: true });
     }
   }, [user, navigate]);
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?view=update_password`,
-      });
-
-      if (error) {
-        throw error;
+      if (view === 'sign_up') {
+        const { session } = await signUp(email.trim(), password);
+        if (!session) {
+          setMessage('Your account was created. Check your email to confirm it before signing in.');
+        }
+      } else {
+        await signIn(email.trim(), password);
       }
-
-      setResetSent(true);
-    } catch (error: any) {
-      alert(error.message);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Unable to complete this request.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleResetPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth?view=update_password`,
+    });
+
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setResetSent(true);
+      setMessage('Password reset instructions have been sent to your email.');
+    }
+    setLoading(false);
+  };
+
+  const switchView = (nextView: AuthView) => {
+    setView(nextView);
+    setError('');
+    setMessage('');
+    setResetSent(false);
+    setPassword('');
+  };
+
+  const isResetView = view === 'forgot_password';
+  const isSignUpView = view === 'sign_up';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-xl">
+      <div className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-xl shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-white">
-            {view === 'sign_in' ? 'Welcome Back!' : 'Reset Password'}
+            {isResetView ? 'Reset Password' : isSignUpView ? 'Create Your Account' : 'Welcome Back!'}
           </h2>
           <p className="mt-2 text-sm text-gray-300">
-            {view === 'sign_in'
-              ? 'Please sign in to continue with your purchase'
-              : 'Enter your email to receive reset instructions'}
+            {isResetView
+              ? 'Enter your email to receive reset instructions'
+              : isSignUpView
+                ? 'Sign up to continue with your purchase'
+                : 'Please sign in to continue with your purchase'}
           </p>
         </div>
 
-        {view === 'sign_in' ? (
-          <>
-            <Auth
-              supabaseClient={supabase}
-              appearance={{ 
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#00e6e6',
-                      brandAccent: '#00b3b3',
-                    }
-                  }
-                }
-              }}
-              theme="dark"
-              providers={[]}
-              redirectTo={`${window.location.origin}/checkout`}
-              onlyThirdPartyProviders={false}
-              magicLink={false}
-              socialLayout="horizontal"
-              view="sign_in"
-              defaultEmail={email}
-            />
-            <div className="text-center mt-4">
-              <button
-                onClick={() => setView('forgot_password')}
-                className="text-primary-400 hover:text-primary-300 text-sm"
-              >
-                Forgot your password?
+        {isResetView ? (
+          resetSent ? (
+            <div className="text-center space-y-4">
+              <p className="text-green-400">{message}</p>
+              <button type="button" onClick={() => switchView('sign_in')} className="text-primary-400 hover:text-primary-300">
+                Return to Sign In
               </button>
             </div>
-          </>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <label htmlFor="reset-email" className="block text-sm font-medium text-gray-300">
+                Email address
+                <input
+                  id="reset-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="mt-2 block w-full px-3 py-3 border border-gray-700 rounded-md bg-gray-900 text-white focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="you@example.com"
+                />
+              </label>
+              <button type="submit" disabled={loading} className="w-full btn-primary disabled:opacity-60">
+                {loading ? 'Sending...' : 'Send Reset Instructions'}
+              </button>
+              <button type="button" onClick={() => switchView('sign_in')} className="w-full text-primary-400 hover:text-primary-300 text-sm">
+                Back to Sign In
+              </button>
+            </form>
+          )
         ) : (
-          <div className="mt-8">
-            {resetSent ? (
-              <div className="text-center">
-                <p className="text-green-400 mb-4">
-                  Password reset instructions have been sent to your email.
-                </p>
-                <button
-                  onClick={() => {
-                    setView('sign_in');
-                    setResetSent(false);
-                  }}
-                  className="text-primary-400 hover:text-primary-300"
-                >
-                  Return to Sign In
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <label htmlFor="auth-email" className="block text-sm font-medium text-gray-300">
+              Email address
+              <input
+                id="auth-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="mt-2 block w-full px-3 py-3 border border-gray-700 rounded-md bg-gray-900 text-white focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                placeholder="you@example.com"
+              />
+            </label>
+
+            <label htmlFor="auth-password" className="block text-sm font-medium text-gray-300">
+              {isSignUpView ? 'Create a Password' : 'Password'}
+              <input
+                id="auth-password"
+                type="password"
+                required
+                minLength={6}
+                autoComplete={isSignUpView ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="mt-2 block w-full px-3 py-3 border border-gray-700 rounded-md bg-gray-900 text-white focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                placeholder="Your password"
+              />
+            </label>
+
+            {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
+            {message && <p className="text-sm text-green-400" role="status">{message}</p>}
+
+            <button type="submit" disabled={loading} className="w-full btn-primary disabled:opacity-60">
+              {loading ? 'Please wait...' : isSignUpView ? 'Sign Up' : 'Sign In'}
+            </button>
+
+            <div className="flex flex-col items-center gap-3 text-sm">
+              <button type="button" onClick={() => switchView(isSignUpView ? 'sign_in' : 'sign_up')} className="text-gray-300 hover:text-white underline">
+                {isSignUpView ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+              </button>
+              {!isSignUpView && (
+                <button type="button" onClick={() => switchView('forgot_password')} className="text-primary-400 hover:text-primary-300">
+                  Forgot your password?
                 </button>
-              </div>
-            ) : (
-              <form onSubmit={handleResetPassword} className="space-y-6">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                    Email address
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      required
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-700 rounded-md shadow-sm bg-gray-900 text-white focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <button
-                    type="submit"
-                    className="w-full btn-primary"
-                  >
-                    Send Reset Instructions
-                  </button>
-                </div>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setView('sign_in')}
-                    className="text-primary-400 hover:text-primary-300 text-sm"
-                  >
-                    Back to Sign In
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+              )}
+            </div>
+          </form>
         )}
       </div>
     </div>

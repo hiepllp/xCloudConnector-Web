@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, X, Cloud, User } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -64,9 +64,9 @@ const Navbar = () => {
           </div>
           {user ? (
             <div className="flex items-center space-x-4">
-              <Link to="/profile" className="nav-link flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Profile
+              <Link to="/profile" className="nav-link flex items-center max-w-56" title={user.email ?? 'Account'}>
+                <User className="h-5 w-5 mr-2 shrink-0" />
+                <span className="truncate">{user.email ?? 'Account'}</span>
               </Link>
               <button onClick={signOut} className="btn-secondary">
                 Sign Out
@@ -113,11 +113,12 @@ const Navbar = () => {
               <>
                 <Link
                   to="/profile"
-                  className="block py-2 nav-link"
+                  className="block py-2 nav-link truncate"
                   onClick={() => setIsOpen(false)}
+                  title={user.email ?? 'Account'}
                 >
                   <User className="h-5 w-5 inline mr-2" />
-                  Profile
+                  {user.email ?? 'Account'}
                 </Link>
                 <button 
                   onClick={() => {
