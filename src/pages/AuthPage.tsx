@@ -5,6 +5,14 @@ import { useAuth } from '../hooks/useAuth';
 
 type AuthView = 'sign_in' | 'sign_up' | 'forgot_password';
 
+const getAuthErrorMessage = (authError: unknown) => {
+  if (authError instanceof TypeError && authError.message.toLowerCase().includes('fetch')) {
+    return 'We could not connect to the account service. Check your internet connection and try again.';
+  }
+
+  return authError instanceof Error ? authError.message : 'Unable to complete this request.';
+};
+
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +47,7 @@ const AuthPage = () => {
         await signIn(email.trim(), password);
       }
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : 'Unable to complete this request.');
+      setError(getAuthErrorMessage(authError));
     } finally {
       setLoading(false);
     }
@@ -51,17 +59,22 @@ const AuthPage = () => {
     setError('');
     setMessage('');
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth?view=update_password`,
-    });
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth?view=update_password`,
+      });
 
-    if (resetError) {
-      setError(resetError.message);
-    } else {
+      if (resetError) {
+        throw resetError;
+      }
+
       setResetSent(true);
       setMessage('Password reset instructions have been sent to your email.');
+    } catch (resetError) {
+      setError(getAuthErrorMessage(resetError));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const switchView = (nextView: AuthView) => {
